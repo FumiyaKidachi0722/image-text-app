@@ -1,10 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import html2canvas from "html2canvas";
 
 const Home = () => {
   const [image, setImage] = useState<string | null>(null);
   const [text, setText] = useState<string>("");
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const downloadRef = useRef<HTMLAnchorElement | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -19,19 +20,85 @@ const Home = () => {
   };
 
   const handleDownload = () => {
-    if (imageRef.current) {
-      html2canvas(imageRef.current.parentElement as HTMLElement).then(
-        (canvas) => {
-          const link = downloadRef.current;
-          if (link) {
-            link.href = canvas.toDataURL("image/png");
-            link.download = "cheki.png";
-            link.click();
-          }
+    if (canvasRef.current) {
+      html2canvas(canvasRef.current).then((canvas) => {
+        const link = downloadRef.current;
+        if (link) {
+          link.href = canvas.toDataURL("image/png");
+          link.download = "cheki.png";
+          link.click();
         }
-      );
+      });
     }
   };
+
+  const getRandomOffset = (max: number) => Math.random() * max - max / 2;
+  const getRandomRotation = (max: number) =>
+    (Math.random() * max - max / 2) * (Math.PI / 180);
+
+  /**
+   * ランダムなずれと回転を持つ文字を描画する
+   * @param ctx キャンバスのコンテキスト
+   * @param text 描画するテキスト
+   * @param x x座標
+   * @param y y座標
+   */
+  const drawTextWithRandomDisplacement = (
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number
+  ) => {
+    ctx.save();
+    const fontSize = 24;
+    const font = "24px 'Yomogi', sans-serif";
+    ctx.font = font;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#ff69b4";
+    ctx.fillStyle = "pink";
+
+    text.split("").forEach((char, index) => {
+      const offsetX = x + index * fontSize + getRandomOffset(5);
+      const offsetY = y + getRandomOffset(5);
+      const rotation = getRandomRotation(10);
+
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.rotate(rotation);
+
+      ctx.strokeText(char, 0, 0);
+      ctx.fillText(char, 0, 0);
+
+      ctx.restore();
+    });
+
+    ctx.restore();
+  };
+
+  /**
+   * テキストを描画する
+   */
+  const drawText = () => {
+    if (canvasRef.current && imageRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        const imageElement = imageRef.current;
+        canvas.width = imageElement.width;
+        canvas.height = imageElement.height;
+        ctx.drawImage(imageElement, 0, 0);
+
+        const x = 10;
+        const y = canvas.height - 30;
+
+        drawTextWithRandomDisplacement(ctx, text, x, y);
+      }
+    }
+  };
+
+  useEffect(() => {
+    drawText();
+  }, [text, image]);
 
   return (
     <div style={{ textAlign: "center", fontFamily: "'Yomogi', sans-serif" }}>
@@ -57,37 +124,20 @@ const Home = () => {
             ref={imageRef}
             src={image}
             alt="uploaded"
+            onLoad={drawText}
             style={{
               maxWidth: "100%",
               maxHeight: "500px",
-              borderRadius: "10px",
+              display: "none",
             }}
           />
-          <span
+          <canvas
+            ref={canvasRef}
             style={{
-              position: "absolute",
-              bottom: "10px",
-              left: "10px",
-              color: "#fff",
-              backgroundColor: "transparent",
-              padding: "5px 10px",
-              borderRadius: "10px",
-              fontFamily: "'Yomogi', sans-serif",
-              fontSize: "24px",
-              textShadow: `
-                2px 2px 0 #ff69b4, 
-                -2px 2px 0 #ff69b4, 
-                2px -2px 0 #ff69b4, 
-                -2px -2px 0 #ff69b4,
-                2px 0 0 #ff69b4,
-                -2px 0 0 #ff69b4,
-                0 2px 0 #ff69b4,
-                0 -2px 0 #ff69b4`, // ピンクの影を追加
-              whiteSpace: "pre-wrap",
+              maxWidth: "100%",
+              maxHeight: "500px",
             }}
-          >
-            {text}
-          </span>
+          />
         </div>
       )}
       <br />
